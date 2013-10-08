@@ -1,0 +1,140 @@
+<!--
+This file is a demonstration of TaxCloud.js - see https://taxcloud.net/stripe/
+Yhe current version of this sample file is always available at https://taxcloud.net/downloads/taxcloud.js/HelloTaxCloud.html
+-->
+<html>
+	<head>
+		<title>Simple HTML e-commerce site to demonstrate TaxCloud.js</title>
+		<!-- TaxCloud Requirements -->
+		<script type="text/javascript" src="https://taxcloud.net/taxcloud.js"></script>
+		<!-- Stripe Requirements -->
+		<script src="https://checkout.stripe.com/v2/checkout.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<!-- TaxCloud.js mini-cart UI Requires JQueryUI -->
+		<script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js'></script>
+		<!-- TaxCloud.js mini-cart UI relies upon a JQueryUI Theme, a slightly modified 'Cupertino' theme -->
+		<link rel='stylesheet' href='https://taxcloud.net/downloads/TaxCloud.js/TaxCloud.js.css'/>
+		<script>
+			var myTaxCloud = new TaxCloud("TaxCloud.aspx", "doPurchase.php");
+			var storeName = "Your Store Name";
+			$().ready(function () {
+			    myTaxCloud.OnPurchaseStep2PurchaseClicked = TaxCloudPurchaseStep2PurchaseClicked;
+				myTaxCloud.Install();
+				SetMyAddress();
+                //you can optionally set the customer id, or let taxcloud generate one for you from the shipping address
+				//myTaxCloud.SetCustomerID(getCustomerID(), true);
+				FillTaxCloudCart();
+				//enable to verify communications via TaxCloud.php (or TaxCloud.aspx) are working correctly
+				//myTaxCloud.Ping(null, TaxCloudPingCallback);
+				$("#TaxCloudPurchaseButton").click(function () {
+					myTaxCloud.OpenPurchaseStep1();
+					return false;
+				});
+				//Warn developer to load via SSL
+				if (window.location.protocol != "https:"){
+					var reloadUnderSSL = "https:" + window.location.href.substring(window.location.protocol.length);
+					$("#warning").append("<span class='ui-icon ui-icon-alert' style='float: left; margin-right: .3em;margin-left:1em;'></span><strong>Alert:</strong> This demonstration page should be <a href=" + reloadUnderSSL  + ">reloaded via SSL</a><p/>");
+				}
+
+			});
+			function SetMyAddress() {
+				myTaxCloud.addressOrigin.address1 = "1912 Pike Pl";//Change to your street address
+				myTaxCloud.addressOrigin.city = "Seattle";//Change to your city
+				myTaxCloud.addressOrigin.state = "WA";//Change to your state
+				myTaxCloud.addressOrigin.zip5 = "98101";//Change to your 5-digit zip
+			}
+			function FillTaxCloudCart() {
+				if (myTaxCloud.cart.items.length == 0) {
+					myTaxCloud.cart.AddItem(new TaxCloudCartItem("SAU102", "This is a really long item name for humans to read", 1.5, 1, 30070));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("MTS102", "Blue T-shirt", 1.5, 1, 20010));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("MTS103", "Pencil", .99, 1, 20070));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("PRD711", "Potato Chips", 1.9, 1, 40030));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("PRD712", "8 oz. bottle of watter", .49, 12, 40060));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("FLG001", "Connecticut flag", 19.99, 1, 90104));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("GRP001", "Graphic design", 99, 1, 91040));
+					  myTaxCloud.cart.AddItem(new TaxCloudCartItem("SVC003", "Running shoes", 149, 1, 92005));
+					myTaxCloud.deliveredBySeller = false; // Set to true if delivered in a seller vehicle. This is not typical (think florists)
+				}	 
+			}
+			function getCustomerID(){
+				//go get your customer identifier from somewhere
+				return "fabulousCustomer399";
+			}
+			function TaxCloudPurchaseStep2PurchaseClicked(myTaxCloud) {
+			    purchaseWithStripe(myTaxCloud, Math.floor(myTaxCloud.cart.GrandTotal() * 100.0));
+			}
+			function TaxCloudPingCallback(myTaxCloud) {
+				if (myTaxCloud.pingResponseType == "OK"){
+					alert("Congratulations!\nCommunication with TaxCloud.js is fully operational.\n\nYou are on your way to sales tax simplicity.");
+				}else {
+					if (myTaxCloud.pingResponseMessage.length==0){
+						alert("Unable to communicate with TaxCloud.\nPlease verify your PHP and CURL configuration.")
+					}else{
+						alert(myTaxCloud.pingResponseMessage);
+					}
+				}
+			}
+			function getUserID() {
+			    //go get your user identifier from somewhere
+			    return "fabulousCustomer399";
+			}
+			function purchaseWithStripe(myTaxCloud, grandTotal) {
+				var token = function (res) {
+					var formData = "stripeToken=" + res.id + "&amount=" + grandTotal.toString() + "&userid=" + getUserID();
+					myTaxCloud.Purchase(null, formData, purchaseWithStripeCallback);
+				};
+				StripeCheckout.open({
+					key: '<YOUR STRIPE KEY>',
+					address: false,
+					amount: grandTotal,
+					currency: 'usd',
+					name: storeName,
+					description: 'This is a test purchase',
+					panelLabel: 'Checkout',
+					token: token
+				});
+			}
+			function purchaseWithStripeCallback(myTaxCloud, responseText) {
+				if (responseText) {
+				    // handle stripe specific response text
+				    var stripeObject = JSON.parse(responseText);
+					var created = new Date(stripeObject.created * 1000);
+					myTaxCloud.AuthorizedWithCapture(null, stripeObject.id, created, created, authorizedWithCaptureCallback);
+				}
+			}
+			function authorizedWithCaptureCallback(myTaxCloud) {
+			    if (myTaxCloud.authorizedWithCaptureResponseType == "OK") {
+			        myTaxCloud.ClearLocalStorage();
+			        alert("Thank you for purchasing!");
+			    }
+			    else {
+			        if (myTaxCloud.authorizedWithCaptureResponseMessage == null)
+			            alert("Unable to communicate with TaxCloud.\nPlease verify your ASPX/PHP and CURL configuration.")
+			        else
+			            alert(myTaxCloud.authorizedWithCaptureResponseMessage);
+			    }
+			}
+		</script>
+	</head>
+	<body>
+		<h1>I am going to sell you something.</h1>
+		Get ready.
+		<table style="border:1px solid #cccccc;" width="300">
+			<thead>
+				<td>Product</td><td>Price</td><td></td>
+			</thead>
+			<tr>
+				<td>Item XYZ</td><td>$24.99</td><td><button type="button" id="001" onclick='myTaxCloud.cart.AddItem(new TaxCloudCartItem("1", "XYZ", 24.99, 1, 00000)); myTaxCloud.Lookup(null, null)'>Add to Cart</button></td>
+			</tr>
+		</table>
+		<button type="button" id="TaxCloudPurchaseButton">Checkout</button>
+    <p/>
+    <div class="ui-widget ui-state-error ui-corner-all" style="font-size:small;" id="warning">
+	    <p/>
+	    <span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;margin-left:1em;"></span>
+	    <strong>Alert:</strong>
+      This is a <b>TaxCloud.js</b> demonstration page only. <a href="https://taxcloud.net/stripe/" title="Learn more about TaxCloud.js">Learn more about TaxCloud.js</a>
+      <p/>
+    </div>
+  </body>
+</html>
